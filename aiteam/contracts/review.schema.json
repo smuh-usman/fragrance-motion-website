@@ -1,0 +1,110 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "summary", "criteria", "findings", "independently_inspected"],
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "FAIL"],
+      "description": "PASS only if every acceptance criterion is met and no finding is critical or high."
+    },
+
+    "summary": {
+      "type": "string",
+      "description": "Two or three sentences on what was actually inspected and what decided the verdict."
+    },
+
+    "independently_inspected": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "description": "Files the reviewer opened itself. The implementer's report is an unverified claim; this field records what the reviewer verified with its own eyes."
+    },
+
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "met", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "met": { "type": "boolean" },
+          "evidence": {
+            "type": "string",
+            "description": "The file, line or test output that shows this. 'Looks correct' is not evidence."
+          }
+        }
+      }
+    },
+
+    "findings": {
+      "type": "array",
+      "description": "Empty on a clean PASS. Every entry must be falsifiable.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "file", "line", "claim", "failure_scenario", "remediation", "counterexample"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+          "file": { "type": "string" },
+          "line": { "type": ["integer", "null"], "description": "Optional line number; null when the finding spans the file." },
+          "claim": { "type": "string", "description": "One sentence stating the defect." },
+          "failure_scenario": {
+            "type": "string",
+            "description": "Concrete inputs or sequence producing the wrong outcome. A finding without one is dropped rather than reported."
+          },
+          "remediation": { "type": "string" },
+          "counterexample": {
+            "type": ["object", "null"],
+            "description": "Optional structured proof the reviewer cannot run itself: the harness applies these changes to the worktree, runs the named test, and records whether the test behaved as the reviewer predicted. A missing or malformed counterexample is rejected by this schema rather than accepted and skipped. Optionality is expressed by the null type, never by omission from 'required', because the provider's strict structured-output mode requires every declared property to be required.",
+            "additionalProperties": false,
+            "required": ["files", "test", "expect"],
+            "properties": {
+              "files": {
+                "type": "array",
+                "minItems": 1,
+                "description": "Files to add or edit in the worktree. Each entry states the relative path and either the exact text to write (for a file that does not exist yet) or an anchor/replacement pair (for an edit).",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["path", "content", "find", "replace"],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Path relative to the worktree root."
+                    },
+                    "content": {
+                      "type": ["string", "null"],
+                      "description": "Full file content. Use this for a file the finding expects NOT to exist yet; the harness refuses to apply it over an existing file. Either this or a find/replace pair, never both."
+                    },
+                    "find": {
+                      "type": ["string", "null"],
+                      "minLength": 1,
+                      "description": "Exact text that must appear in the target file. The harness proves the tree actually changed before it trusts the test result."
+                    },
+                    "replace": {
+                      "type": ["string", "null"],
+                      "description": "What to put in place of the anchor. When 'find' is present and 'replace' is absent, the anchor is deleted."
+                    }
+                  }
+                }
+              },
+              "test": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The single test-name filter passed to the test runner, exactly as the task's own verified_by references name a test."
+              },
+              "expect": {
+                "type": "string",
+                "enum": ["PASS", "FAIL"],
+                "description": "PASS when the test must stay green with the counterexample applied — the usual case for a finding that says an analysis misses something — and FAIL when the test must go red, the usual case for a finding that says a guard is missing."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "$comment": "Model routing. To re-route work, change the model names here. Names must exist in providers.json. Nothing else in the harness hard-codes a model.",
+  "routing": {
+    "orchestration": {
+      "model": "opus-5",
+      "why": "Holds the plan, the task graph and architectural intent."
+    },
+    "architecture": {
+      "model": "opus-5",
+      "why": "High-risk, hard-to-reverse decisions."
+    },
+    "decomposition": {
+      "model": "opus-5",
+      "why": "Task quality determines everything downstream."
+    },
+    "research": {
+      "model": "deepseek-v4-flash",
+      "why": "Read-only exploration; cheaper tier is sufficient."
+    },
+    "implementation": {
+      "model": "deepseek-v4-flash",
+      "why": "Primary workforce for scoped, criteria-bearing tasks."
+    },
+    "testing": {
+      "model": "deepseek-v4-flash",
+      "why": "Test authoring is implementation under the QA role."
+    },
+    "refactor": {
+      "model": "deepseek-v4-flash",
+      "why": "Mechanical, guarded by an existing test suite."
+    },
+    "documentation": {
+      "model": "deepseek-v4-flash",
+      "why": "Routine writing against a known diff."
+    },
+    "review": {
+      "model": "gpt-5.6-sol",
+      "why": "Independent, read-only, schema-constrained verdict. The only reviewer with an OS-level sandbox and a runner-imposed schema."
+    },
+    "security_review": {
+      "model": "gpt-5.6-sol",
+      "why": "Independent, read-only, schema-constrained verdict. The only reviewer with an OS-level sandbox and a runner-imposed schema."
+    },
+    "diagnosis": {
+      "model": "opus-5",
+      "why": "Root-cause reasoning before any code is touched."
+    }
+  },
+  "escalation": {
+    "$comment": "When a task fails repeatedly the model is promoted, not merely retried. Repeated failure usually means the task contract was wrong, which is why the ladder ends at the orchestrator rather than looping forever. There is deliberately no third-model rung: the only other dispatchable writing model shares a family with the reviewer, and an implementer and a reviewer that think alike turn independent review into agreement. Two tries and then a human decision is the honest shape.",
+    "implementation": [
+      {
+        "attempt": 1,
+        "model": "deepseek-v4-flash"
+      },
+      {
+        "attempt": 2,
+        "model": "deepseek-v4-flash",
+        "note": "Retry carries the raw failure log, not a summary of it."
+      },
+      {
+        "attempt": 3,
+        "model": "opus-5",
+        "note": "Orchestrator stops implementing and re-scopes the task. Two failures by the same model against the same contract is the point at which the contract becomes the more likely defect."
+      }
+    ],
+    "max_attempts": 3,
+    "max_review_rejections": 2,
+    "on_max_review_rejections": "orchestrator_reads_diff",
+    "max_provider_failovers": 2
+  },
+  "concurrency": {
+    "max_parallel_dispatched_agents": 3,
+    "$comment": "Beyond three concurrent external agents, cost grows faster than wall-clock benefit and local CPU contention distorts test timings."
+  }
+}

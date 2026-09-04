@@ -1,0 +1,377 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Engineering task contract",
+  "description": "Validated at creation. A task that cannot state how it will be proven correct is not a task, and this schema rejects it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "title",
+    "objective",
+    "risk",
+    "acceptance_criteria",
+    "files",
+    "assigned_role",
+    "assigned_model",
+    "verification",
+    "review",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^TASK-[0-9]{4}(-FIX[0-9]+)?$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 20,
+      "description": "Must name a specific behaviour. 'Build authentication' is too vague to verify; 'Implement applicant invitation creation and one-time token validation' names something testable."
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 30
+    },
+    "context": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Paths or doc anchors the agent must read first. This is where project-specific knowledge enters a generic role."
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^TASK-[0-9]{4}(-FIX[0-9]+)?$"
+      }
+    },
+    "risk": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "risk_reason": {
+      "type": "string"
+    },
+    "harness_task": {
+      "type": "boolean",
+      "description": "Explicitly opts a task into maintaining harness CODE. Absence means false: a task that does not declare it is treated exactly as every task is today, with write access under aiteam/** a hard scope violation. The exemption is never inferred from the file list, the title, or anything else; it only opens WHICH paths a task may list in files.expected, never the list itself. It never permits .aiteam/** (harness state, the machinery of judgement) and never permits skipping review — a harness task must pass independent review, enforced by the transition gate rather than trusted to this field."
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Each criterion names the test that proves it, so 'criteria met' is grep-checkable rather than a matter of opinion.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "statement",
+          "verified_by"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^AC[0-9]+$"
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 15
+          },
+          "verified_by": {
+            "type": "string",
+            "minLength": 5,
+            "description": "test:<file>::<name> for automated proof, or manual:<what the orchestrator must observe> when no test can express it."
+          },
+          "met": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "evidence": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mutation": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+              "file",
+              "find",
+              "test"
+            ],
+            "description": "How to break the behaviour this criterion asserts, so the harness can prove the criterion's test is capable of failing. A test that still passes once its guard is removed proves nothing, and green tests of that kind have twice reached review in this project. The reviewer runs read-only and cannot execute container-backed tests, so this is the only automated check on test honesty.",
+            "properties": {
+              "file": {
+                "type": "string",
+                "description": "Path, relative to the worktree, holding the guard."
+              },
+              "find": {
+                "type": "string",
+                "minLength": 3,
+                "description": "Exact source text implementing the guard. Must appear exactly once."
+              },
+              "replace": {
+                "type": "string",
+                "description": "What to put in its place. Defaults to empty, i.e. delete the guard."
+              },
+              "test": {
+                "type": "string",
+                "minLength": 3,
+                "description": "Test-name filter passed to the runner. With the guard removed this test MUST fail."
+              }
+            }
+          }
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected"
+      ],
+      "properties": {
+        "expected": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "Globs the task may write. Used both to detect scope violations and to schedule non-colliding tasks in parallel."
+        },
+        "forbidden": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "assigned_role": {
+      "type": "string",
+      "enum": [
+        "architect",
+        "researcher",
+        "backend",
+        "frontend",
+        "database",
+        "qa",
+        "security",
+        "reviewer",
+        "devops",
+        "debugger"
+      ]
+    },
+    "lens": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "security",
+          "performance",
+          "accessibility",
+          "concurrency"
+        ]
+      },
+      "description": "Overlays layered onto the role prompt. Lenses are how a generic role acquires a specialist's attention without absorbing project vocabulary."
+    },
+    "assigned_model": {
+      "type": "string"
+    },
+    "required_tests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "counterexample_runner": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Per-task override for the command that executes counterexamples. Defaults to the vitest runner when absent; a task whose tests are shell scripts (a finding against aiteam/**) names its own runner here. Read by bin/counterexample.sh."
+    },
+    "mutation_runner": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Per-task override for the command that executes mutation checks. Defaults to the vitest runner when absent. Read by bin/mutate.sh."
+    },
+    "verification": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "description": "Shell commands run in the worktree. Their recorded exit code, not the agent's report, decides whether the task advances."
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "reviewer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rejections": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "isolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "worktree": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "BACKLOG",
+        "READY",
+        "ASSIGNED",
+        "IN_PROGRESS",
+        "TESTING",
+        "REVIEW",
+        "CHANGES_REQUESTED",
+        "VERIFIED",
+        "MERGED",
+        "DONE",
+        "BLOCKED",
+        "ABANDONED"
+      ]
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "findings": {
+      "type": "array",
+      "description": "Carried verbatim from review into the remediation task. Summarising findings loses the detail that made them actionable.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "diff": {
+          "type": "string"
+        },
+        "verification": {
+          "type": "string"
+        },
+        "review": {
+          "type": "string"
+        },
+        "merge": {
+          "type": "string"
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "at",
+          "from",
+          "to"
+        ],
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "waiver": {
+      "$comment": "The owner's recorded decision to accept work over a failing review. It never alters the verdict, the findings or the unmet criteria \u2014 those stay exactly as the reviewer wrote them. Every field is required because a waiver without a decider, a reason or a successor task is indistinguishable from the finding being forgotten.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accepted_by",
+        "reason",
+        "waived_to"
+      ],
+      "properties": {
+        "accepted_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "accepted_at": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "waived_to": {
+          "$comment": "The task that now carries the findings. Gates refuse a waiver naming a task that is DONE, ABANDONED or absent.",
+          "type": "string",
+          "minLength": 1
+        },
+        "carried_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unmet_at_waiver": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

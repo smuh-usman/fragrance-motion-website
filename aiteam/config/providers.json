@@ -1,0 +1,351 @@
+{
+ "$comment": "How each model is actually invoked. Verified against the local environment on 2026-08-17. Edit this file to point the harness at different CLIs or models; nothing else needs to change.",
+ "providers": {
+  "commandcode": {
+   "bin": "cmd",
+   "auth_check": [
+    "cmd",
+    "status"
+   ],
+   "auth_ok_pattern": "Authentication verified",
+   "notes": "Agentic CLI with file write access. Headless writes REQUIRE --yolo; --permission-mode auto-accept is silently insufficient in -p mode. Because --yolo bypasses all prompts including shell execution, agents on this provider MUST be confined to a git worktree. Requires Node 22+; the CLI refuses to start on older runtimes, and nvm can silently make an older one active.",
+   "min_node_major": 22
+  },
+  "codex": {
+   "bin": "codex",
+   "auth_check": [
+    "codex",
+    "exec",
+    "--help"
+   ],
+   "auth_ok_pattern": "output-schema",
+   "notes": "OpenAI CLI authenticated via ChatGPT OAuth. Supports a read-only sandbox and JSON-Schema-constrained final output, which is what makes it a trustworthy reviewer."
+  },
+  "claude": {
+   "bin": "claude",
+   "auth_check": [
+    "claude",
+    "--version"
+   ],
+   "auth_ok_pattern": "Claude Code",
+   "notes": "The orchestrating session itself. Not dispatched as a subprocess by the harness."
+  },
+  "claudecode": {
+   "bin": "claude",
+   "$comment": "Claude Code as a dispatchable implementer. Two facts were established by running it, not assumed. It refuses to start inside another Claude Code session — 'nested sessions share runtime resources and will crash all active sessions' — so CLAUDECODE and CLAUDE_CODE_ENTRYPOINT are unset in argv; the orchestrator IS a Claude Code session, so without this every dispatch dies instantly. And this version exposes no --max-turns, so the wall clock is the only budget it has."
+  }
+ },
+ "models": {
+  "opus-5": {
+   "provider": "claude",
+   "role_class": "orchestrator",
+   "dispatchable": false,
+   "notes": "The live Claude Code session. Plans, routes, adjudicates and accepts. Never dispatched as a subprocess."
+  },
+  "deepseek-v4-flash": {
+   "provider": "commandcode",
+   "role_class": "implementer",
+   "dispatchable": true,
+   "writes_files": true,
+   "requires_isolation": true,
+   "argv": [
+    "cmd",
+    "-p",
+    "{PROMPT_FILE_STDIN}",
+    "--model",
+    "deepseek-v4-flash",
+     "--skip-onboarding",
+    "--trust",
+    "--yolo",
+    "--output-format",
+    "json",
+    "--max-turns",
+    "{MAX_TURNS}"
+   ],
+   "default_max_turns": 280,
+   "timeout_seconds": 5400,
+   "stall_seconds": 1200,
+   "$fallback": "No fallback model is declared. A provider fault on this model stops the run with an outage message rather than quietly handing the same contract to a different model: substituting a model changes what produced the code, and that is the task owner's decision, not a retry loop's."
+  },
+  "gpt-5.6-sol": {
+   "provider": "codex",
+   "role_class": "reviewer",
+   "dispatchable": true,
+   "writes_files": false,
+   "requires_isolation": false,
+   "argv": [
+    "codex",
+    "exec",
+    "--model",
+    "gpt-5.6-sol",
+    "--sandbox",
+    "read-only",
+    "--cd",
+    "{WORKDIR}",
+    "--ephemeral",
+    "-c",
+    "model_reasoning_effort=\"high\"",
+    "--output-schema",
+    "{SCHEMA_FILE}",
+    "--output-last-message",
+    "{OUTPUT_FILE}"
+   ],
+   "timeout_seconds": 2400,
+   "notes": "read-only is a hard guarantee, not a request: the reviewer cannot edit what it judges, so it can never quietly fix instead of reporting. Reasoning effort is forced to high because codex defaults it to 'none', which would make the reviewer skim.  Reviewer failover is deliberately absent. Substituting a weaker reviewer when this one is out of credit is the worst possible silent degradation: the task still gets a verdict, the verdict still says PASS, and nothing in the record shows it came from a reader rather than a reviewer. That exact substitution once passed a lock-strength defect the credited reviewer caught in a single run. When this model cannot be reached the run stops and asks a human.",
+   "stall_seconds": 1200
+  },
+  "gpt-5.6-terra": {
+   "provider": "codex",
+   "role_class": "researcher",
+   "dispatchable": true,
+   "writes_files": false,
+   "requires_isolation": false,
+   "argv": [
+    "codex",
+    "exec",
+    "--model",
+    "gpt-5.6-terra",
+    "--sandbox",
+    "read-only",
+    "--cd",
+    "{WORKDIR}",
+    "--ephemeral",
+    "--output-last-message",
+    "{OUTPUT_FILE}"
+   ],
+   "timeout_seconds": 1200,
+   "notes": "Cheaper Codex tier used for read-only repository exploration and prior-art research.",
+   "stall_seconds": 900
+  },
+  "gpt-5.6-terra-write": {
+   "provider": "codex",
+   "role_class": "implementer",
+   "dispatchable": true,
+   "writes_files": true,
+   "requires_isolation": true,
+   "argv": [
+    "codex",
+    "exec",
+    "--model",
+    "gpt-5.6-terra",
+    "--sandbox",
+    "workspace-write",
+    "--cd",
+    "{WORKDIR}",
+    "--ephemeral",
+    "-c",
+    "model_reasoning_effort=\"high\"",
+    "--dangerously-bypass-approvals-and-sandbox"
+   ],
+   "default_max_turns": 280,
+   "timeout_seconds": 5400,
+   "notes": "The same model as gpt-5.6-terra but able to write, used only as the implementation escalation tier. It is a separate entry rather than a flag because a model that can write must never be reachable by the review path — the read-only entry is what the reviewer guard checks.",
+   "stall_seconds": 1200,
+   "fallback_model": "deepseek-v4-flash"
+  },
+  "haiku-4.5": {
+   "provider": "claude",
+   "role_class": "chore",
+   "dispatchable": false,
+   "notes": "Reached through the orchestrator's own subagent mechanism for trivial mechanical work, not via subprocess."
+  },
+  "claude-sonnet-4-6": {
+   "provider": "claudecode",
+   "role_class": "implementer",
+   "dispatchable": false,
+   "writes_files": true,
+   "requires_isolation": true,
+   "argv": [
+    "env",
+    "-u",
+    "CLAUDECODE",
+    "-u",
+    "CLAUDE_CODE_ENTRYPOINT",
+    "claude",
+    "-p",
+    "--model",
+    "claude-sonnet-4-6",
+    "--permission-mode",
+    "bypassPermissions",
+    "--output-format",
+    "stream-json",
+    "--verbose"
+   ],
+   "timeout_seconds": 5400,
+   "stall_seconds": 1200,
+   "fallback_model": "deepseek-v4-flash",
+   "notes": "bypassPermissions is the same containment trade already accepted for commandcode's --yolo and codex's sandbox bypass: the agent must write and run tests without prompting, and the git worktree is the boundary that makes that acceptable. The prompt arrives on stdin; there is no --cd, so dispatch relies on the subshell's working directory.",
+   "$disabled": "Turned off by the task owner on 2026-08-20. Kept in this file rather than deleted so the model routing that produced historical attempts is still readable — several completed tasks name it. Nothing may dispatch it while dispatchable is false."
+  },
+  "gpt-5.6-sol-cc": {
+   "provider": "commandcode",
+   "role_class": "reviewer",
+   "dispatchable": true,
+   "writes_files": false,
+   "requires_isolation": false,
+   "argv": [
+    "cmd",
+    "-p",
+    "-m",
+    "gpt-5.6-sol",
+    "--plan",
+    "--effort",
+    "high",
+    "--output-format",
+    "json",
+    "--max-turns",
+    "120",
+    "--add-dir",
+    "{WORKDIR}"
+   ],
+   "timeout_seconds": 2400,
+   "stall_seconds": 1200,
+   "verdict_from_log": true,
+   "notes": "The same reviewer model reached through Command Code instead of codex, for when the codex quota is spent. Two guarantees are WEAKER here and the difference is deliberate rather than hidden. Read-only is enforced by the agent's permission system (plan mode, and no --yolo, which this project already established is required before Command Code will write headlessly) rather than by codex's OS-level --sandbox read-only. And the verdict schema is checked by the harness after the fact instead of being imposed on the runner: an off-schema verdict now wastes a run and dies loudly where it was previously impossible to emit. Both are acceptable; neither should be described as equivalent to the codex path."
+  },
+  "glm-5.3-review": {
+   "provider": "commandcode",
+   "role_class": "reviewer",
+   "dispatchable": true,
+   "writes_files": false,
+   "requires_isolation": false,
+   "argv": [
+    "cmd",
+    "-p",
+    "-m",
+    "zai-org/glm-5.3",
+    "--plan",
+    "--effort",
+    "high",
+    "--output-format",
+    "json",
+    "--max-turns",
+    "120",
+    "--add-dir",
+    "{WORKDIR}"
+   ],
+   "timeout_seconds": 2400,
+   "stall_seconds": 1200,
+   "verdict_from_log": true,
+   "notes": "Reviewer of last resort after the codex quota ran out and gpt-5.6-sol turned out to be listed by the CLI but not entitled on this plan. Chosen because it is a different vendor from the implementer, is actually reachable, and is described for adversarial and security-oriented work — which is where this reviewer has earned its keep. Independence here is process-level (separate session, separate context, no sight of the orchestrator's reasoning) and permission-level, not sandbox-level.",
+   "fallback_model": "kimi-k3-review"
+  },
+  "kimi-k3-review": {
+   "provider": "commandcode",
+   "role_class": "reviewer",
+   "dispatchable": true,
+   "writes_files": false,
+   "requires_isolation": false,
+   "argv": [
+    "cmd",
+    "-p",
+    "-m",
+    "moonshotai/kimi-k3",
+    "--plan",
+    "--effort",
+    "high",
+    "--output-format",
+    "json",
+    "--max-turns",
+    "120",
+    "--add-dir",
+    "{WORKDIR}"
+   ],
+   "timeout_seconds": 2400,
+   "stall_seconds": 1200,
+   "verdict_from_log": true,
+   "notes": "Second reviewer, kept for its very large context: a review that must read a whole diff plus the surrounding code is exactly the case where context runs out first."
+  },
+  "claude-opus-5-review": {
+   "provider": "claudecode",
+   "role_class": "reviewer",
+   "dispatchable": true,
+   "writes_files": false,
+   "requires_isolation": false,
+   "argv": [
+    "env",
+    "-u",
+    "CLAUDECODE",
+    "-u",
+    "CLAUDE_CODE_ENTRYPOINT",
+    "claude",
+    "-p",
+    "--model",
+    "claude-opus-5",
+    "--permission-mode",
+    "plan",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--add-dir",
+    "{WORKDIR}"
+   ],
+   "timeout_seconds": 3600,
+   "stall_seconds": 1200,
+   "verdict_from_log": true,
+   "fallback_model": "glm-5.3-review",
+   "notes": "Reviewer with a working shell. Established by running it: plan mode permits read-only commands — it executed git --version — which is what the previous replacement could not do. glm-5.3 under Command Code's plan mode had no shell at all and reported that it could not run git diff or the mutation checks, so it reconstructed the diff by comparing files by eye and then relaxed a criterion on its own reasoning. A reviewer that cannot execute anything is a reader, not a reviewer. The cost is that this shares the orchestrator's vendor and quota; independence here is process-level — separate session, separate context, no sight of the orchestrator's reasoning — not separate-vendor."
+  },
+  "claude-sonnet-5-review": {
+   "provider": "claudecode",
+   "role_class": "reviewer",
+   "dispatchable": true,
+   "writes_files": false,
+   "requires_isolation": false,
+   "argv": [
+    "env",
+    "-u",
+    "CLAUDECODE",
+    "-u",
+    "CLAUDE_CODE_ENTRYPOINT",
+    "claude",
+    "-p",
+    "--model",
+    "claude-sonnet-5",
+    "--permission-mode",
+    "plan",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--add-dir",
+    "{WORKDIR}"
+   ],
+   "timeout_seconds": 3600,
+   "stall_seconds": 1200,
+   "verdict_from_log": true,
+   "fallback_model": "glm-5.3-review",
+   "notes": "The standing reviewer. Plan mode was measured to permit read-only shell — it runs git --version — which is the capability that separates a reviewer from a reader: the open-weight replacement had no shell, reconstructed the diff by eye, and passed a lock-strength defect that this path caught in one run. Independence is process-level: a separate session with its own context that cannot see the orchestrator's reasoning. It is not sandbox-isolated the way codex was, and it shares the orchestrator's vendor, so it is weaker on independence and stronger on capability than the original."
+  },
+  "qwen3.8-27b": {
+   "provider": "commandcode",
+   "role_class": "implementer",
+   "dispatchable": false,
+   "writes_files": true,
+   "requires_isolation": true,
+   "argv": [
+    "cmd",
+    "-p",
+    "{PROMPT_FILE_STDIN}",
+    "--model",
+    "qwen/qwen3.8-27b",
+    "--effort",
+    "medium",
+    "--no-session",
+    "--skip-onboarding",
+    "--trust",
+    "--yolo",
+    "--output-format",
+    "json",
+    "--max-turns",
+    "{MAX_TURNS}"
+   ],
+   "default_max_turns": 280,
+   "timeout_seconds": 5400,
+   "stall_seconds": 1200,
+   "notes": "Compact 27B implementer, selected by the task owner on 2026-08-22. The CLI lists it as 'compact vision-language coding & agentic work', a smaller tier than the implementer it replaces on this task; that trade was made deliberately and is recorded here so a future reader does not mistake it for a capability judgement made by the harness. Reasoning effort is 'medium' because this model's ladder is low/medium/xhigh with NO 'high' rung — a dispatch configured with 'high' is rejected by the CLI before the model is contacted, exits 1 having read nothing, and burns an attempt. Every other model in this file accepts 'high', so the ladder is per-model and must be probed, not assumed. 'medium' rather than 'xhigh' was the task owner's call: on a 2700s wall clock a compact model that spends the budget reasoning writes nothing.",
+   "$fallback": "No fallback model is declared, matching deepseek-v4-flash. A provider fault stops the run with an outage message rather than quietly handing the same contract to a different model — substituting a model changes what produced the code, and that is the task owner's decision, not a retry loop's.",
+   "prompt_budget_bytes": 40000,
+   "$disabled": "Turned off by the task owner on 2026-08-22 after TASK-0014, which returns to deepseek-v4-flash. Kept in this file rather than deleted so the model routing that produced TASK-0014's attempts 1 and 2 is still readable. For the record, neither of those attempts was ended by this model: attempt 1 was killed by a 2700s wall clock at turn 73 of an allowed 280, and attempt 2 by a Command Code API outage after 102 seconds. Its work passed all four mutations with zero survivors. Nothing may dispatch it while dispatchable is false."
+  }
+ }
+}

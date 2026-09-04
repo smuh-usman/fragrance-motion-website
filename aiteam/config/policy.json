@@ -1,0 +1,173 @@
+{
+  "$comment": "Risk tiers, review triggers and gate rules. Risk is COMPUTED from the paths a task declares and the tags it carries \u2014 it is never chosen freely by the agent doing the work, so nobody can downgrade their own review.",
+  "risk_tiers": {
+    "high": {
+      "review_required": true,
+      "reviewer_role": "reviewer",
+      "lenses": [
+        "security"
+      ],
+      "docs_required": true,
+      "path_patterns": [
+        "**/auth/**",
+        "**/authn/**",
+        "**/authz/**",
+        "**/session*/**",
+        "**/token*/**",
+        "**/password*/**",
+        "**/invitation*/**",
+        "**/crypto/**",
+        "**/migrations/**",
+        "**/migration/**",
+        "**/middleware/**",
+        "**/guards/**",
+        "**/policies/**",
+        "**/rate-limit*/**",
+        "**/export*/**"
+      ],
+      "$tags_comment": "Universal high-risk concepts only. Concepts that are high-risk in a PARTICULAR product belong in .aiteam/risk-overrides.json, which classify.mjs merges on top of this. Putting them here is how a harness quietly acquires one product's assumptions and carries them into the next.",
+      "tags": [
+        "authentication",
+        "authorization",
+        "session",
+        "token",
+        "credential",
+        "crypto",
+        "concurrency",
+        "race-condition",
+        "state-machine",
+        "migration",
+        "money",
+        "payment",
+        "pii",
+        "rate-limiting",
+        "access-control",
+        "privilege"
+      ]
+    },
+    "medium": {
+      "review_required": true,
+      "reviewer_role": "reviewer",
+      "lenses": [],
+      "docs_required": false,
+      "review_skip_if_diff_lines_below": 40,
+      "path_patterns": [
+        "**/routes/**",
+        "**/controllers/**",
+        "**/services/**",
+        "**/repositories/**",
+        "**/domain/**",
+        "**/schema*/**"
+      ],
+      "tags": [
+        "api",
+        "endpoint",
+        "data-access",
+        "validation",
+        "error-handling"
+      ]
+    },
+    "low": {
+      "review_required": false,
+      "reviewer_role": null,
+      "lenses": [],
+      "docs_required": false,
+      "path_patterns": [
+        "**/*.css",
+        "**/*.md",
+        "**/components/**",
+        "**/ui/**",
+        "**/test/fixtures/**"
+      ],
+      "tags": [
+        "ui",
+        "copy",
+        "styling",
+        "docs",
+        "formatting",
+        "fixture"
+      ],
+      "note": "Low risk means automated verification plus the orchestrator reading the diff. It never means unreviewed."
+    }
+  },
+  "risk_resolution": {
+    "$comment": "A task takes the HIGHEST tier matched by any of its declared paths or tags. Ties escalate upward; ambiguity resolves toward more review, never less.",
+    "default_when_unmatched": "medium"
+  },
+  "gates": {
+    "$comment": "Preconditions enforced by bin/task.sh on each transition. These are exit codes, not requests. An agent asserting completion satisfies none of them.",
+    "IN_PROGRESS->TESTING": [
+      {
+        "check": "diff_not_empty",
+        "reason": "An agent that changed nothing cannot have implemented anything."
+      },
+      {
+        "check": "files_within_declared_scope",
+        "reason": "Catches an agent reaching outside its blast radius into another task's territory."
+      }
+    ],
+    "TESTING->REVIEW": [
+      {
+        "check": "verification_log_exists"
+      },
+      {
+        "check": "verification_exit_zero",
+        "reason": "Read from the recorded log, never from the agent's claim about it."
+      },
+      {
+        "check": "test_count_not_regressed",
+        "reason": "Catches tests deleted or skipped to turn a suite green."
+      },
+      {
+        "check": "tests_can_fail",
+        "reason": "Mutation check: each criterion declaring a guard has that guard removed and its own test re-run, which must then fail. Verification proves the suite is green; it cannot prove the suite would have gone red had the work been wrong. Two green tests in this project proved nothing \u2014 one deleted the row it later asserted was absent, another let an upsert mask a missing prune \u2014 and the reviewer cannot catch that class because it runs read-only and the sandbox denies the Docker socket, so container-backed tests are unrunnable for it."
+      }
+    ],
+    "REVIEW->VERIFIED": [
+      {
+        "check": "review_verdict_pass",
+        "reason": "Parsed from schema-constrained JSON, not interpreted from prose."
+      },
+      {
+        "check": "all_acceptance_criteria_met"
+      }
+    ],
+    "VERIFIED->MERGED": [
+      {
+        "check": "verification_rerun_after_rebase",
+        "reason": "Code that passed in isolation can break once integrated; handoff re-runs it after rebasing."
+      },
+      {
+        "check": "merged_into_default_branch",
+        "reason": "A human merged the pull request and git agrees the branch actually landed. The old check asked whether the branch was rebased onto the base, which is the wrong question once the base has moved ahead by absorbing the merge."
+      }
+    ],
+    "MERGED->DONE": [
+      {
+        "check": "docs_updated_if_required"
+      }
+    ]
+  },
+  "review_contract": {
+    "reviewer_must_inspect_diff_independently": true,
+    "implementer_report_is_untrusted": true,
+    "finding_requires_failure_scenario": true,
+    "$comment": "A finding without a concrete way to make it fail is dropped. Unfalsifiable review noise costs more attention than it saves."
+  },
+  "isolation": {
+    "worktree_required_for_writing_agents": true,
+    "worktree_root": ".aiteam/wt",
+    "branch_prefix": "task/",
+    "conflicts_resolved_by": "orchestrator",
+    "$comment": "Implementers run under --yolo, which bypasses every permission prompt. The worktree is the containment boundary that makes that acceptable. Merge conflicts never go back to an implementer: resolving one without understanding the other side's intent is exactly the silent overwrite we are preventing."
+  },
+  "secrets": {
+    "forbidden_patterns": [
+      "-----BEGIN [A-Z ]*PRIVATE KEY-----",
+      "(?i)(api[_-]?key|secret|passwd|password|token)\\s*[:=]\\s*['\"][^'\"]{12,}['\"]",
+      "sk-[A-Za-z0-9]{20,}",
+      "(?i)postgres(ql)?://[^\\s:]+:[^\\s@]+@"
+    ],
+    "$comment": "Scanned pre-commit by the hook and again at integration. Example/placeholder values belong in .env.example, never in tracked code."
+  }
+}
