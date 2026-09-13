@@ -157,7 +157,6 @@ export function Film() {
 
         <div className="chapter chapter--closing" ref={closing}>
           <h2>Lost in Kashmir</h2>
-          <p>A place you can wear.</p>
         </div>
       </div>
     </div>
