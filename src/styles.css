@@ -1,0 +1,197 @@
+:root {
+  /* The film's own studio sweep, sampled from its top edge, which is the one
+     band of the frame that stays constant for the whole twelve seconds. */
+  --ground: #dedcdb;
+  --ink: #22261f;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Jost", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+/* The stage never scrolls. The track below it supplies the distance. */
+.stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--ground);
+}
+
+/* The margin, lit by the film. A 64x114 thumbnail blown up to fill the
+   viewport, so it follows whatever the frame is doing - including the moment
+   the cover splits and the halves reach the frame edge, where a flat pillarbox
+   would suddenly disagree with the picture beside it.
+
+   Held well back: at full strength it reads as a blurred second copy of the
+   film rather than as light coming off it, and the amber of the liquid turns
+   the whole page orange. Blown up far past the viewport so none of the frame's
+   structure survives, and kept faint enough to be atmosphere. */
+.bleed {
+  position: absolute;
+  inset: -20%;
+  width: 140%;
+  height: 140%;
+  object-fit: cover;
+  filter: blur(92px) saturate(0.82) brightness(1.08);
+  opacity: 0.5;
+  transform: translateZ(0);
+}
+
+/* Draws the eye back to the middle and keeps the corners from drifting bright
+   when the liquid is in frame. */
+.stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(
+    ellipse 74% 68% at 50% 46%,
+    rgba(0, 0, 0, 0) 42%,
+    rgba(40, 44, 36, 0.16) 100%
+  );
+}
+
+/* A portrait film, held at full height in the middle of the frame. Cropping it
+   to fill a landscape viewport would mean three times scale and the bottle
+   losing its top and bottom, so it is presented as what it is. */
+.film {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate3d(-50%, -50%, 0);
+  height: 100dvh;
+  aspect-ratio: 480 / 854;
+  max-width: 100vw;
+  object-fit: contain;
+  display: block;
+  /* Sits the film just off the ambient light behind it rather than cutting a
+     hard rectangle out of it. */
+  box-shadow: 0 2px 90px rgba(28, 34, 24, 0.22);
+}
+
+/* A viewport narrower than the film's own aspect gets it edge to edge, which
+   on a phone is simply full bleed. */
+@media (max-aspect-ratio: 480 / 854) {
+  .film {
+    height: auto;
+    width: 100vw;
+    box-shadow: none;
+  }
+}
+
+.track {
+  /* Twelve seconds of film. Shorter and the beats blur past; much longer and
+     the cap takes a whole screen of scrolling to come off. */
+  height: 700vh;
+}
+
+.chrome {
+  position: absolute;
+  top: clamp(20px, 3vw, 40px);
+  left: clamp(20px, 3vw, 40px);
+  z-index: 3;
+  mix-blend-mode: difference;
+}
+
+.wordmark {
+  display: block;
+  font-family: "Cormorant Garamond", ui-serif, Georgia, serif;
+  font-size: clamp(13px, 1.1vw, 16px);
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: #f7f5f0;
+}
+
+.copy {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.chapter {
+  position: absolute;
+  left: 50%;
+  width: min(90vw, 720px);
+  text-align: center;
+  will-change: transform, opacity;
+}
+
+.chapter h1,
+.chapter h2 {
+  font-family: "Cormorant Garamond", ui-serif, Georgia, serif;
+  font-weight: 300;
+  margin: 0;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+}
+
+.chapter--opening {
+  top: clamp(48px, 7vh, 96px);
+  transform: translate3d(-50%, 0, 0);
+}
+
+.chapter--opening h1 {
+  /* Kept narrower than the film itself, so the line sits inside the frame
+     rather than straddling its edge. */
+  font-size: clamp(1.5rem, 3.3vw, 2.7rem);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.12;
+}
+
+/* Bookended with the opening line rather than set along the bottom. The film is
+   full height and the bottle stands in the lower middle of it, so anything laid
+   across the base of the frame lands on the product - and the top of the frame
+   is empty studio in exactly the closing shots where this appears. */
+.chapter--closing {
+  top: clamp(44px, 6.5vh, 90px);
+  transform: translate3d(-50%, 0, 0);
+  opacity: 0;
+  color: var(--ink);
+  text-shadow: 0 1px 34px rgba(250, 250, 246, 0.7);
+}
+
+.chapter--closing h2 {
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.chapter--closing p {
+  margin: clamp(10px, 1.4vh, 18px) 0 0;
+  font-size: clamp(0.8rem, 1vw, 0.95rem);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 300;
+  opacity: 0.86;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter {
+    transition: none !important;
+  }
+
+  /* The film never moves under reduced motion, so seven screens of scrolling
+     would be seven screens of nothing. Enough track to carry the two lines of
+     type and no more. */
+  .track {
+    height: 180vh;
+  }
+}

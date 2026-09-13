@@ -1,0 +1,11 @@
+{
+  "$comment": "The only file coupling the generic harness to this project. Edit the commands below — they define what 'passing' means for every task.",
+  "project": "motion-website-generator",
+  "default_branch": "master",
+  "verification": {
+    "test": "npm run typecheck && npm run build",
+    "typecheck": "npm run typecheck",
+    "lint": "",
+    "build": "npm run build"
+  }
+}

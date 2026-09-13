@@ -1,0 +1,16 @@
+# Vite's own build output is content-hashed, so its name changes whenever its
+# bytes do and it can be cached forever.
+/assets/index-*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Everything served straight out of public/ keeps a stable name, so it must be
+# revalidated: cached immutable for a year, a re-encoded film would never reach
+# anyone who had already loaded the page.
+/assets/lost-in-kashmir/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/
+  Cache-Control: public, max-age=0, must-revalidate

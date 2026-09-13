@@ -1,0 +1,18 @@
+
+# AI engineering harness runtime state.
+# Task definitions and evidence are tracked (they are the project's record of
+# what was built and how it was proven); worktrees and raw transcripts are not.
+.aiteam/wt/
+.aiteam/runs/
+.claude/
+brand/
+node_modules
+
+# Build output.
+dist/
+
+# Raw generations before encoding. Only selected, encoded plates are tracked.
+raw/
+
+# TypeScript build cache.
+tsconfig.tsbuildinfo
