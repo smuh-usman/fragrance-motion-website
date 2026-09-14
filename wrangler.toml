@@ -1,0 +1,27 @@
+# Cloudflare Workers deployment.
+#
+# Static-only, and deliberately so. Vite emits ./dist and nothing runs on the
+# edge except serving those bytes, so the deploy is an assets-only Worker: no
+# `main`, no fetch handler, no server functions.
+#
+# The hosting mode matters for the film. The scroll-driven playhead in
+# src/film/Film.tsx seeks ceremony.mp4 to arbitrary timestamps, which requires
+# the browser to fetch specific byte ranges. The legacy KV-backed Workers Sites
+# mode (`[site]`) answers every request with the whole file, so a seek past the
+# already-buffered opening never resolves. The `[assets]` binding below is the
+# modern static hosting mode and serves those ranges natively (206 with
+# Accept-Ranges/Content-Range) with no custom Worker in the path to strip the
+# Range header on the way through.
+#
+# `wrangler deploy` authenticates from the environment, never from this file:
+# set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (or run `wrangler login`
+# once for a local OAuth session). Neither value belongs in the repository.
+
+name = "fragrance-motion-website"
+compatibility_date = "2026-09-11"
+
+[assets]
+directory = "./dist"
+# One route, rendered client-side: unmatched paths fall through to index.html
+# rather than 404ing on a deep link.
+not_found_handling = "single-page-application"
