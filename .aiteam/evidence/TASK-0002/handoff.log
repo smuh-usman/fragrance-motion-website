@@ -1,0 +1,6 @@
+branch:   task/task-0002-add-a-wranglertoml-configured-for-modern
+base:     master
+prepared: 2026-09-14T14:23:38Z
+head:     763777d503cc232eda8c3ee42d551b4a4d357d00
+commits:
+  763777d TASK-0002 (attempt 1): Add a wrangler.toml configured for modern Workers Static Assets, not legacy KV sites

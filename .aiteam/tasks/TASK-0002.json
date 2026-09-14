@@ -1,0 +1,109 @@
+{
+  "id": "TASK-0002",
+  "title": "Add a wrangler.toml configured for modern Workers Static Assets, not legacy KV sites",
+  "objective": "The live deployment at fragrance-motion-website.bale97cook.workers.dev serves public/assets/lost-in-kashmir/ceremony.mp4 with a plain 200 and no Accept-Ranges/Content-Range even when a Range header is sent (confirmed: content-length always equals the full 2,364,241-byte file). Film.tsx seeks the video to arbitrary scroll-driven timestamps via video.currentTime, which requires the browser to fetch specific byte ranges; without Range support, seeks into unbuffered parts of the file (the ingredients/liquid-mixing portion, further into the file than the opening) fail, so only the already-buffered opening ever renders. That response shape is characteristic of legacy KV-backed 'Workers Sites' ([site] in wrangler.toml), which cannot serve partial content. This repo has no wrangler.toml at all today, so add one configured for the modern Workers Static Assets binding, which serves Range requests correctly with no custom Worker script needed for a static SPA.",
+  "context": [
+    "vite.config.ts",
+    "package.json",
+    "index.html",
+    "public/_headers",
+    "src/film/Film.tsx"
+  ],
+  "risk": "medium",
+  "risk_reason": "Deployment configuration only; no application code, auth, or data paths touched. Matches the policy default for unmatched paths.",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "statement": "A wrangler.toml exists at the repo root declaring name = \"fragrance-motion-website\" (matching the existing live deployment), a compatibility_date, and an [assets] block with directory pointing at the Vite build output (\"./dist\"). It must NOT declare a [site] block (the legacy KV-backed static hosting mode that cannot serve Range requests).",
+      "verified_by": "manual: read wrangler.toml; confirm name, compatibility_date, and [assets].directory are present and no [site] table exists"
+    },
+    {
+      "id": "AC2",
+      "statement": "The [assets] block sets not_found_handling to serve index.html for unmatched paths (single-page-application fallback), matching this project's single-route SPA structure (vite.config.ts: 'Static output... No SSR, no server functions').",
+      "verified_by": "manual: read wrangler.toml; confirm [assets].not_found_handling is set to the single-page-application fallback value"
+    },
+    {
+      "id": "AC3",
+      "statement": "No custom Worker entry point (a `main` field, or any *.ts/*.js Worker script) is introduced. For a pure static SPA with no server functions, an assets-only configuration is correct and is what preserves Cloudflare's native Range/206 support for the static binding; a custom fetch handler that proxies asset requests risks stripping the Range header again.",
+      "verified_by": "manual: confirm wrangler.toml has no top-level main field and no new Worker entry script was added"
+    },
+    {
+      "id": "AC4",
+      "statement": "package.json gains a deploy script equivalent to `vite build && wrangler deploy`, and wrangler is added as a devDependency, so the deployment command is reproducible from the repo instead of done ad hoc from the Cloudflare dashboard or an untracked CLI invocation.",
+      "verified_by": "manual: read package.json; confirm a deploy script and a wrangler devDependency are present"
+    },
+    {
+      "id": "AC5",
+      "statement": "npm run typecheck and npm run build both still succeed unchanged (this task adds deploy configuration only, no src/ changes).",
+      "verified_by": "manual: verification log for 'npm run typecheck' and 'npm run build' shows exit code 0"
+    }
+  ],
+  "files": {
+    "expected": [
+      "wrangler.toml",
+      "package.json",
+      "package-lock.json"
+    ],
+    "forbidden": [
+      "aiteam/**",
+      ".aiteam/**",
+      "brand/**",
+      "dist/**",
+      "src/**",
+      "public/**",
+      "index.html"
+    ]
+  },
+  "assigned_role": "devops",
+  "assigned_model": "deepseek-v4-flash",
+  "verification": [
+    "npm run typecheck",
+    "npm run build"
+  ],
+  "review": {
+    "required": true,
+    "reviewer": "gpt-5.6-sol",
+    "rejections": 0
+  },
+  "status": "VERIFIED",
+  "attempts": 1,
+  "findings": [],
+  "evidence": {
+    "verification": ".aiteam/evidence/TASK-0002/verify.log",
+    "review": ".aiteam/evidence/TASK-0002/review.json",
+    "handoff": ".aiteam/evidence/TASK-0002/handoff.log"
+  },
+  "history": [
+    {
+      "at": "2026-09-14T14:13:13Z",
+      "from": "READY",
+      "to": "ASSIGNED"
+    },
+    {
+      "at": "2026-09-14T14:13:13Z",
+      "from": "ASSIGNED",
+      "to": "IN_PROGRESS"
+    },
+    {
+      "at": "2026-09-14T14:22:03Z",
+      "from": "IN_PROGRESS",
+      "to": "TESTING"
+    },
+    {
+      "at": "2026-09-14T14:22:03Z",
+      "from": "TESTING",
+      "to": "REVIEW"
+    },
+    {
+      "at": "2026-09-14T14:23:34Z",
+      "from": "REVIEW",
+      "to": "VERIFIED"
+    }
+  ],
+  "created_at": "2026-09-14T14:12:58Z",
+  "updated_at": "2026-09-14T14:23:38Z",
+  "isolation": {
+    "worktree": ".git/aiteam-worktrees/TASK-0002",
+    "branch": "task/task-0002-add-a-wranglertoml-configured-for-modern"
+  }
+}
