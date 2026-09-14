@@ -78,7 +78,7 @@
     "reviewer": "gpt-5.6-sol",
     "rejections": 1
   },
-  "status": "VERIFIED",
+  "status": "DONE",
   "attempts": 3,
   "findings": [
     {
@@ -94,7 +94,8 @@
   "evidence": {
     "verification": ".aiteam/evidence/TASK-0001/verify.log",
     "review": ".aiteam/evidence/TASK-0001/review.json",
-    "handoff": ".aiteam/evidence/TASK-0001/handoff.log"
+    "handoff": ".aiteam/evidence/TASK-0001/handoff.log",
+    "merge": ".aiteam/evidence/TASK-0001/merge.log"
   },
   "history": [
     {
@@ -153,10 +154,20 @@
       "at": "2026-09-14T11:16:23Z",
       "from": "REVIEW",
       "to": "VERIFIED"
+    },
+    {
+      "at": "2026-09-14T11:37:50Z",
+      "from": "VERIFIED",
+      "to": "MERGED"
+    },
+    {
+      "at": "2026-09-14T11:37:50Z",
+      "from": "MERGED",
+      "to": "DONE"
     }
   ],
   "created_at": "2026-09-14T10:58:30Z",
-  "updated_at": "2026-09-14T11:16:27Z",
+  "updated_at": "2026-09-14T11:37:50Z",
   "isolation": {
     "worktree": ".git/aiteam-worktrees/TASK-0001",
     "branch": "task/task-0001-build-lost-in-kashmir-product-page-shell"
