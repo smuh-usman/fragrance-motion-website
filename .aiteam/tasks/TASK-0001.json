@@ -1,0 +1,164 @@
+{
+  "id": "TASK-0001",
+  "title": "Build Lost in Kashmir product page shell around the existing scroll film",
+  "objective": "Turn this repo from a bare full-screen scroll film into a full clone of the live imaginaryfragrances.shop Lost in Kashmir product page, with the existing Film component (src/film/Film.tsx) serving as the page's hero/intro section instead of being the entire page. Implementation note: .stage is currently `position: fixed; inset: 0` in src/styles.css, which pins it permanently with nothing to release it. To let normal page content appear below the hero once its own scroll track (.track, 700vh / 180vh on mobile) is exhausted, change .stage's positioning strategy in styles.css (e.g. to `position: sticky; top: 0; height: 100vh` inside a wrapper whose height equals .track's height) rather than touching Film.tsx or ScrollProvider.tsx — the scroll-progress math in ScrollProvider only depends on the track element's own top/bottom, not on how .stage is positioned, so this is a pure CSS/layout change.",
+  "context": [
+    "src/App.tsx",
+    "src/film/Film.tsx",
+    "src/film/timing.ts",
+    "src/scroll/ScrollProvider.tsx",
+    "src/scene/Scene.tsx",
+    "src/styles.css",
+    "public/assets/lost-in-kashmir/product/gallery-1.png",
+    "public/assets/lost-in-kashmir/product/gallery-2.png",
+    "public/assets/lost-in-kashmir/product/gallery-3.png",
+    "public/assets/lost-in-kashmir/product/gallery-4.png",
+    "public/assets/lost-in-kashmir/product/logo.gif",
+    "public/assets/lost-in-kashmir/product/payment-icons.jpg"
+  ],
+  "risk": "medium",
+  "risk_reason": "New page surface and copy/asset integration only; no auth, payment processing, migrations or server code touched. Declaring medium (above the low default for pure UI/component paths) so this gets independent review even if the path-based classifier would resolve lower.",
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "statement": "App.tsx renders a full product page: header/nav with the downloaded logo.gif, the Film component as a hero/intro section (not the whole page), a 4-image product gallery using gallery-1..4.png, a price/variant/add-to-cart block, an ingredients+notes breakdown, the narrative description, and a footer with payment-icons.jpg — in that order, in normal document flow below the film's scroll track, matching the section order of the live page.",
+      "verified_by": "manual: read src/App.tsx and the new section components; confirm each section listed above is present, in order, and references the real downloaded assets by path rather than placeholders"
+    },
+    {
+      "id": "AC2",
+      "statement": "The existing scroll film mechanics are unmodified in behavior: ScrollProvider's damped playhead-follow and Film.tsx's rendering are reused as-is (only their mount position within the new page shell changes), with no change to the easing, GOP/seek handling, or pillarbox treatment described in the Film.tsx module comment.",
+      "verified_by": "manual: diff src/film/Film.tsx and src/scroll/ScrollProvider.tsx against their current committed versions; any change beyond how/where they are mounted is a finding"
+    },
+    {
+      "id": "AC3",
+      "statement": "Real product copy and pricing appear verbatim: price Rs. 9,500.00 for 100ml and Rs. 6,000.00 for 50ml with a size selector between them, the top/heart/base note breakdown (Top: Gin, Lavender, Orange Blossom; Heart: Orris Root, Jasmine, Citruses and Iris Flower; Base: Cinnamon, Tonka Beans, Musk, Amber), and the narrative paragraph beginning 'Lost in Kashmir embodies the freeing and unencumbered beauty of Kashmir's sun-kissed meadows, plains, and forests...' through '...a fragrance that takes you on a captivating journey.'",
+      "verified_by": "manual: grep the new section components for the price strings, the three note lists, and the narrative paragraph text"
+    },
+    {
+      "id": "AC4",
+      "statement": "Typography and palette approximate the live site: a serif display face (Tenor Sans, loaded via Google Fonts or self-hosted, with a generic serif fallback) for headings, near-black ink (#111111) on a white/off-white ground, generous whitespace, no colour used as the sole carrier of meaning (e.g. the 'selling out quick' status is not colour-only).",
+      "verified_by": "manual: inspect the stylesheet for the Tenor Sans font-family and #111111 ink color, and confirm status/availability text has a text label, not just a colour swatch"
+    },
+    {
+      "id": "AC5",
+      "statement": "The page remains a static client-only build (no new backend/checkout wiring): 'Add to cart' and the size selector are functional UI state (selected variant reflected in displayed price) but do not call any network endpoint, consistent with this project's static-output Vite config.",
+      "verified_by": "manual: confirm no fetch/XHR calls were added for cart/checkout, and that size selection only updates local component state and displayed price"
+    },
+    {
+      "id": "AC6",
+      "statement": "npm run typecheck and npm run build both succeed against the new code.",
+      "verified_by": "manual: verification log for 'npm run typecheck' and 'npm run build' shows exit code 0"
+    }
+  ],
+  "files": {
+    "expected": [
+      "src/**",
+      "public/assets/lost-in-kashmir/product/**",
+      "index.html"
+    ],
+    "forbidden": [
+      "aiteam/**",
+      ".aiteam/**",
+      "brand/**",
+      "dist/**",
+      "package.json",
+      "package-lock.json",
+      "src/film/Film.tsx",
+      "src/scroll/ScrollProvider.tsx"
+    ]
+  },
+  "assigned_role": "frontend",
+  "assigned_model": "deepseek-v4-flash",
+  "verification": [
+    "npm run typecheck",
+    "npm run build"
+  ],
+  "review": {
+    "required": true,
+    "reviewer": "gpt-5.6-sol",
+    "rejections": 1
+  },
+  "status": "VERIFIED",
+  "attempts": 3,
+  "findings": [
+    {
+      "severity": "medium",
+      "file": "src/product/Narrative.tsx",
+      "line": 9,
+      "claim": "The narrative does not reproduce the acceptance criterion's required opening and ending verbatim.",
+      "failure_scenario": "A reviewer or content check searching for the required literal opening `Lost in Kashmir embodies the freeing and unencumbered beauty` finds no match because line 9 inserts quotation marks around the product name; similarly, the required sentence ending `a fragrance that takes you on a captivating journey.` is absent because line 12 continues after `journey`, so the rendered Description supplies different boundary text than AC3 specifies.",
+      "remediation": "Replace the narrative boundary wording with the exact text specified by AC3, preserving the required opening without inserted punctuation and ending the required passage at `a fragrance that takes you on a captivating journey.` No structured counterexample is available because AC3 names only a manual grep verification and provides no executable test-name filter for the harness.",
+      "counterexample": null
+    }
+  ],
+  "evidence": {
+    "verification": ".aiteam/evidence/TASK-0001/verify.log",
+    "review": ".aiteam/evidence/TASK-0001/review.json",
+    "handoff": ".aiteam/evidence/TASK-0001/handoff.log"
+  },
+  "history": [
+    {
+      "at": "2026-09-14T10:58:47Z",
+      "from": "READY",
+      "to": "ASSIGNED"
+    },
+    {
+      "at": "2026-09-14T10:58:47Z",
+      "from": "ASSIGNED",
+      "to": "IN_PROGRESS"
+    },
+    {
+      "at": "2026-09-14T10:59:26Z",
+      "from": "IN_PROGRESS",
+      "to": "IN_PROGRESS",
+      "note": "attempt 1: dispatch to deepseek-v4-flash failed"
+    },
+    {
+      "at": "2026-09-14T11:07:03Z",
+      "from": "IN_PROGRESS",
+      "to": "TESTING"
+    },
+    {
+      "at": "2026-09-14T11:07:03Z",
+      "from": "TESTING",
+      "to": "REVIEW"
+    },
+    {
+      "at": "2026-09-14T11:10:31Z",
+      "from": "REVIEW",
+      "to": "CHANGES_REQUESTED"
+    },
+    {
+      "at": "2026-09-14T11:10:31Z",
+      "from": "CHANGES_REQUESTED",
+      "to": "IN_PROGRESS"
+    },
+    {
+      "at": "2026-09-14T11:10:31Z",
+      "from": "IN_PROGRESS",
+      "to": "IN_PROGRESS",
+      "note": "escalated to orchestrator after 2 failed attempts"
+    },
+    {
+      "at": "2026-09-14T11:13:06Z",
+      "from": "IN_PROGRESS",
+      "to": "TESTING"
+    },
+    {
+      "at": "2026-09-14T11:13:06Z",
+      "from": "TESTING",
+      "to": "REVIEW"
+    },
+    {
+      "at": "2026-09-14T11:16:23Z",
+      "from": "REVIEW",
+      "to": "VERIFIED"
+    }
+  ],
+  "created_at": "2026-09-14T10:58:30Z",
+  "updated_at": "2026-09-14T11:16:27Z",
+  "isolation": {
+    "worktree": ".git/aiteam-worktrees/TASK-0001",
+    "branch": "task/task-0001-build-lost-in-kashmir-product-page-shell"
+  }
+}

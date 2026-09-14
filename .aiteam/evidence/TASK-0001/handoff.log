@@ -1,0 +1,7 @@
+branch:   task/task-0001-build-lost-in-kashmir-product-page-shell
+base:     master
+prepared: 2026-09-14T11:16:27Z
+head:     abfb3e5203110143cee626c7ef1bc045f3f731f6
+commits:
+  abfb3e5 TASK-0001 (attempt 3): Build Lost in Kashmir product page shell around the existing scroll film
+  e6c33e5 TASK-0001 (attempt 2): Build Lost in Kashmir product page shell around the existing scroll film
