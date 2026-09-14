@@ -1,20 +1,30 @@
 import { useRef } from "react";
 import { ScrollProvider } from "./scroll/ScrollProvider";
 import { Film } from "./film/Film";
+import { Header } from "./product/Header";
+import { ProductPage } from "./product/ProductPage";
+import { SiteFooter } from "./product/SiteFooter";
 
 /**
- * The page is one fixed stage plus a tall, empty scroll track. Nothing scrolls
- * past the viewer; scroll is read as a position in the film and spent leading
- * the playhead. Chapter copy lives in ordinary semantic HTML above the film so
- * it stays crisp, selectable and readable to a screen reader in document order.
+ * The film is the page's hero, not the page.
+ *
+ * Scroll still drives it exactly as before, through ScrollProvider and Film
+ * untouched: the hero wrapper takes its height from the film's own track, and
+ * the stage pins inside that wrapper. When the track is exhausted the stage
+ * releases and the product below it scrolls into view in normal document flow.
  */
 export default function App() {
   const track = useRef<HTMLDivElement>(null);
 
   return (
     <ScrollProvider trackRef={track}>
-      <Film />
-      <div ref={track} className="track" aria-hidden="true" />
+      <Header />
+      <div className="hero">
+        <Film />
+        <div ref={track} className="track" aria-hidden="true" />
+      </div>
+      <ProductPage />
+      <SiteFooter />
     </ScrollProvider>
   );
 }
