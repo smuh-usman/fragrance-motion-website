@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "deploy": "npm run build && wrangler deploy",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "depth": "node scripts/depth.mjs",
@@ -28,6 +29,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "playwright": "^1.63.0",
     "typescript": "^5.7.2",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "wrangler": "^4.131.2"
   }
 }
